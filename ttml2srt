@@ -5,35 +5,6 @@ import sys
 from datetime import timedelta
 from xml.etree import ElementTree as ET
 
-filename = sys.argv[1]
-
-tree = ET.parse(filename)
-root = tree.getroot()
-
-# strip namespaces
-for elem in root.iter():
-    elem.tag = elem.tag.split('}', 1)[-1]
-    elem.attrib = {name.split('}', 1)[-1]: value for name, value in elem.attrib.items()}
-
-tick_rate = root.attrib.get('tickRate', None)
-if tick_rate is not None:
-    tick_rate = int(tick_rate)
-
-# get styles
-styles = {}
-for elem in root.findall('./head/styling/style'):
-    style = {}
-    if 'color' in elem.attrib:
-        color = elem.attrib['color']
-        if color not in ('#FFFFFF', '#000000'):
-            style['color'] = color
-    if 'fontStyle' in elem.attrib:
-        fontstyle = elem.attrib['fontStyle']
-        if fontstyle in ('italic', ):
-            style['fontstyle'] = fontstyle
-    styles[elem.attrib['id']] = style
-
-body = root.find('./body')
 
 # parse correct start and end times
 def parse_time_expression(expression, default_offset=timedelta(0)):
@@ -94,16 +65,6 @@ def parse_times(elem, default_begin=timedelta(0)):
     for child in elem:
         parse_times(child, default_begin=begin)
 
-parse_times(body)
-
-timestamps = set()
-for elem in body.findall('.//*[@{abs}begin]'):
-    timestamps.add(elem.attrib['{abs}begin'])
-
-for elem in body.findall('.//*[@{abs}end]'):
-    timestamps.add(elem.attrib['{abs}end'])
-
-timestamps.discard(None)
 
 # render subtitles on each timestamp
 def render_subtitles(elem, timestamp, parent_style={}):
@@ -177,23 +138,6 @@ def render_subtitles(elem, timestamp, parent_style={}):
 
     return result
 
-rendered = []
-for timestamp in sorted(timestamps):
-    rendered.append((timestamp, re.sub(r'\n\n\n+', '\n\n', render_subtitles(body, timestamp)).strip()))
-
-if not rendered:
-    exit(0)
-
-# group timestamps together if nothing changes
-rendered_grouped = []
-last_text = None
-for timestamp, content in rendered:
-    if content != last_text:
-        rendered_grouped.append((timestamp, content))
-    last_text = content
-
-# output srt
-rendered_grouped.append((rendered_grouped[-1][0]+timedelta(hours=24), ''))
 
 def format_timestamp(timestamp: timedelta):
     return ('%02d:%02d:%06.3f' % (timestamp.total_seconds()//3600,
@@ -201,13 +145,72 @@ def format_timestamp(timestamp: timedelta):
                                   timestamp.total_seconds()%60)).replace('.', ',')
 
 
-srt_i = 1
-for i, (timestamp, content) in enumerate(rendered_grouped[:-1]):
-    if content == '':
-        continue
-    print(srt_i)
-    print(format_timestamp(timestamp)+' --> '+format_timestamp(rendered_grouped[i+1][0]))
-    print(content)
-    srt_i += 1
-    print('')
+if __name__ == '__main__':
+    filename = sys.argv[1]
 
+    tree = ET.parse(filename)
+    root = tree.getroot()
+
+    # strip namespaces
+    for elem in root.iter():
+        elem.tag = elem.tag.split('}', 1)[-1]
+        elem.attrib = {name.split('}', 1)[-1]: value for name, value in elem.attrib.items()}
+
+    tick_rate = root.attrib.get('tickRate', None)
+    if tick_rate is not None:
+        tick_rate = int(tick_rate)
+
+    # get styles
+    styles = {}
+    for elem in root.findall('./head/styling/style'):
+        style = {}
+        if 'color' in elem.attrib:
+            color = elem.attrib['color']
+            if color not in ('#FFFFFF', '#000000'):
+                style['color'] = color
+        if 'fontStyle' in elem.attrib:
+            fontstyle = elem.attrib['fontStyle']
+            if fontstyle in ('italic', ):
+                style['fontstyle'] = fontstyle
+        styles[elem.attrib['id']] = style
+
+    body = root.find('./body')
+
+    parse_times(body)
+
+    timestamps = set()
+    for elem in body.findall('.//*[@{abs}begin]'):
+        timestamps.add(elem.attrib['{abs}begin'])
+
+    for elem in body.findall('.//*[@{abs}end]'):
+        timestamps.add(elem.attrib['{abs}end'])
+
+    timestamps.discard(None)
+
+    rendered = []
+    for timestamp in sorted(timestamps):
+        rendered.append((timestamp, re.sub(r'\n\n\n+', '\n\n', render_subtitles(body, timestamp)).strip()))
+
+    if not rendered:
+        exit(0)
+
+    # group timestamps together if nothing changes
+    rendered_grouped = []
+    last_text = None
+    for timestamp, content in rendered:
+        if content != last_text:
+            rendered_grouped.append((timestamp, content))
+        last_text = content
+
+    # output srt
+    rendered_grouped.append((rendered_grouped[-1][0]+timedelta(hours=24), ''))
+
+    srt_i = 1
+    for i, (timestamp, content) in enumerate(rendered_grouped[:-1]):
+        if content == '':
+            continue
+        print(srt_i)
+        print(format_timestamp(timestamp)+' --> '+format_timestamp(rendered_grouped[i+1][0]))
+        print(content)
+        srt_i += 1
+        print('')
