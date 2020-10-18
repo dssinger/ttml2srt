@@ -67,9 +67,7 @@ def parse_times(elem, default_begin=timedelta(0)):
 
 
 # render subtitles on each timestamp
-def render_subtitles(elem, timestamp, parent_style={}):
-    global styles
-
+def render_subtitles(elem, timestamp, styles, parent_style={}):
     if timestamp < elem.attrib['{abs}begin']:
         return ''
     if elem.attrib['{abs}end'] is not None and timestamp >= elem.attrib['{abs}end']:
@@ -104,7 +102,7 @@ def render_subtitles(elem, timestamp, parent_style={}):
         result += re.sub(r'\s+$', ' ', re.sub(r'^\s+', ' ', elem.text))
     if len(elem):
         for child in elem:
-            result += render_subtitles(child, timestamp)
+            result += render_subtitles(child, timestamp=timestamp, styles=styles)
             if child.tail:
                 result += re.sub(r'\s+$', ' ', re.sub(r'^\s+', ' ', child.tail))
 
@@ -145,9 +143,7 @@ def format_timestamp(timestamp: timedelta):
                                   timestamp.total_seconds()%60)).replace('.', ',')
 
 
-if __name__ == '__main__':
-    filename = sys.argv[1]
-
+def convert_ttml_to_srt(filename):
     tree = ET.parse(filename)
     root = tree.getroot()
 
@@ -189,7 +185,10 @@ if __name__ == '__main__':
 
     rendered = []
     for timestamp in sorted(timestamps):
-        rendered.append((timestamp, re.sub(r'\n\n\n+', '\n\n', render_subtitles(body, timestamp)).strip()))
+        rendered.append((
+            timestamp,
+            re.sub(r'\n\n\n+', '\n\n', render_subtitles(body, timestamp=timestamp, styles=styles)).strip()
+        ))
 
     if not rendered:
         exit(0)
@@ -205,12 +204,21 @@ if __name__ == '__main__':
     # output srt
     rendered_grouped.append((rendered_grouped[-1][0]+timedelta(hours=24), ''))
 
+    lines = []
+
     srt_i = 1
     for i, (timestamp, content) in enumerate(rendered_grouped[:-1]):
         if content == '':
             continue
-        print(srt_i)
-        print(format_timestamp(timestamp)+' --> '+format_timestamp(rendered_grouped[i+1][0]))
-        print(content)
+        lines.append(str(srt_i))
+        lines.append(format_timestamp(timestamp)+' --> '+format_timestamp(rendered_grouped[i+1][0]))
+        lines.append(content)
         srt_i += 1
-        print('')
+        lines.append('')
+
+    return "\n".join(lines)
+
+
+if __name__ == '__main__':
+    filename = sys.argv[1]
+    print(convert_ttml_to_srt(filename))
