@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import pathlib
 import re
 import sys
 from datetime import timedelta
@@ -143,9 +144,8 @@ def format_timestamp(timestamp: timedelta):
                                   timestamp.total_seconds()%60)).replace('.', ',')
 
 
-def convert_ttml_to_srt(filename):
-    tree = ET.parse(filename)
-    root = tree.getroot()
+def convert_ttml_to_srt(ttml_subtitles):
+    root = ET.fromstring(ttml_subtitles)
 
     # strip namespaces
     for elem in root.iter():
@@ -220,5 +220,14 @@ def convert_ttml_to_srt(filename):
 
 
 if __name__ == '__main__':
-    filename = sys.argv[1]
-    print(convert_ttml_to_srt(filename))
+    ttml_file = pathlib.Path(sys.argv[1])
+
+    if ttml_file.suffix != ".ttml":
+        sys.exit(f"Expected ttml file as input")
+
+    ttml_subtitles = ttml_file.read_text()
+    srt_subtitles = convert_ttml_to_srt(ttml_subtitles)
+
+    srt_file = ttml_file.with_suffix(".srt")
+    srt_file.write_text(srt_subtitles)
+    print(srt_file)
