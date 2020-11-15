@@ -220,14 +220,15 @@ def convert_ttml_to_srt(ttml_subtitles):
 
 
 if __name__ == '__main__':
-    ttml_file = pathlib.Path(sys.argv[1])
+    for path in sys.argv[1:]:
+        ttml_file = pathlib.Path(path)
 
-    if ttml_file.suffix != ".ttml":
-        sys.exit(f"Expected ttml file as input")
+        if ttml_file.suffix != ".ttml":
+            sys.exit(f"Expected ttml file as input, got {path}")
 
-    ttml_subtitles = ttml_file.read_text()
-    srt_subtitles = convert_ttml_to_srt(ttml_subtitles)
+        ttml_subtitles = ttml_file.read_text()
+        srt_subtitles = convert_ttml_to_srt(ttml_subtitles)
 
-    srt_file = ttml_file.with_suffix(".srt")
-    srt_file.write_text(srt_subtitles)
-    print(srt_file)
+        srt_file = ttml_file.with_suffix(".srt")
+        srt_file.write_text(srt_subtitles)
+        print(srt_file)
