@@ -118,11 +118,11 @@ def render_subtitles(elem, timestamp, styles):
 
     if elem.text:
         result.append(TRAILING_WHITESPACE.sub(' ', LEADING_WHITESPACE.sub(' ', elem.text)))
-    if len(elem):
-        for child in elem:
-            result.append(render_subtitles(child, timestamp=timestamp, styles=styles))
-            if child.tail:
-                result.append(TRAILING_WHITESPACE.sub(' ', LEADING_WHITESPACE.sub(' ', child.tail)))
+
+    for child in elem:
+        result.append(render_subtitles(child, timestamp=timestamp, styles=styles))
+        if child.tail:
+            result.append(TRAILING_WHITESPACE.sub(' ', LEADING_WHITESPACE.sub(' ', child.tail)))
 
     if 'color' in style:
         result.append('</font>')
@@ -146,7 +146,7 @@ def render_subtitles(elem, timestamp, styles):
 
     result = FONT_COLOR.sub('\g<spaces>', result)
 
-    if elem.tag in ('div', 'p', 'br'):
+    if elem.tag in {'div', 'p', 'br'}:
         result += '\n'
 
     return result
@@ -176,11 +176,11 @@ def convert_ttml_to_srt(ttml_subtitles):
         style = {}
         if 'color' in elem.attrib:
             color = elem.attrib['color']
-            if color not in ('#FFFFFF', '#000000'):
+            if color not in {'#FFFFFF', '#000000'}:
                 style['color'] = color
         if 'fontStyle' in elem.attrib:
             fontstyle = elem.attrib['fontStyle']
-            if fontstyle in ('italic', ):
+            if fontstyle == 'italic':
                 style['fontstyle'] = fontstyle
         styles[elem.attrib['id']] = style
 
