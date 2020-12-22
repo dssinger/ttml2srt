@@ -99,7 +99,6 @@ def render_subtitles(elem, timestamp, styles):
         result += '<i>'
 
     if elem.text:
-        #result += elem.text.strip()
         result += re.sub(r'\s+$', ' ', re.sub(r'^\s+', ' ', elem.text))
     if len(elem):
         for child in elem:
