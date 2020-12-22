@@ -68,7 +68,7 @@ def parse_times(elem, default_begin=timedelta(0)):
 
 
 # render subtitles on each timestamp
-def render_subtitles(elem, timestamp, styles, parent_style={}):
+def render_subtitles(elem, timestamp, styles):
     if timestamp < elem.attrib['{abs}begin']:
         return ''
     if elem.attrib['{abs}end'] is not None and timestamp >= elem.attrib['{abs}end']:
@@ -76,7 +76,7 @@ def render_subtitles(elem, timestamp, styles, parent_style={}):
 
     result = ''
 
-    style = parent_style.copy()
+    style = {}
     if 'style' in elem.attrib:
         # Handle multiple entries in the 'style' attribute,
         # e.g.
