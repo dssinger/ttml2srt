@@ -67,6 +67,24 @@ def parse_times(elem, default_begin=timedelta(0)):
         parse_times(child, default_begin=begin)
 
 
+LEADING_WHITESPACE = re.compile(r"^\s+")
+TRAILING_WHITESPACE = re.compile(r"\s+$")
+
+NEWLINE_WITH_TRAILING_SPACE = re.compile(r"\n\s+")
+NEWLINE_WITH_LEADING_SPACE = re.compile(r"\s+\n")
+
+FONT_OR_I_1 = re.compile(r'(?P<all>(\s|^)<(font color="([^"]+)"|i)>) +')
+FONT_OR_I_2 = re.compile(r' +(?P<all></(font|i)>(\s|$))')
+MULTI_COLOR_FONT = re.compile(
+    r'<font color="(?P<color1>[^"]+)">(?P<startspaces>\s*)<font color="(?P<color2>[^"]+)">(?P<text>[^<]+)</font>(?P<endspaces>\s*)</font>'
+)
+
+CLOSING_TAG = re.compile(r'\n+(?P<all></(font|i)>)')
+FONT_COLOR = re.compile(r'<font color="([^"]+)">(?P<spaces>\s*)</font>')
+
+TRIPLE_NEWLINE = re.compile(r"\n\n\n+")
+
+
 # render subtitles on each timestamp
 def render_subtitles(elem, timestamp, styles):
     if timestamp < elem.attrib['{abs}begin']:
@@ -99,12 +117,12 @@ def render_subtitles(elem, timestamp, styles):
         result.append('<i>')
 
     if elem.text:
-        result.append(re.sub(r'\s+$', ' ', re.sub(r'^\s+', ' ', elem.text)))
+        result.append(TRAILING_WHITESPACE.sub(' ', LEADING_WHITESPACE.sub(' ', elem.text)))
     if len(elem):
         for child in elem:
             result.append(render_subtitles(child, timestamp=timestamp, styles=styles))
             if child.tail:
-                result.append(re.sub(r'\s+$', ' ', re.sub(r'^\s+', ' ', child.tail)))
+                result.append(TRAILING_WHITESPACE.sub(' ', LEADING_WHITESPACE.sub(' ', child.tail)))
 
     if 'color' in style:
         result.append('</font>')
@@ -113,18 +131,20 @@ def render_subtitles(elem, timestamp, styles):
         result.append('</i>')
 
     result = ''.join(result)
-    result = re.sub(r'(?P<all>(\s|^)<(font color="([^"]+)"|i)>) +', '\g<all>', result)
-    result = re.sub(r' +(?P<all></(font|i)>(\s|$))', '\g<all>', result)
-    result = re.sub(r'\n\s+', '\n', result)
-    result = re.sub(r'\s+\n', '\n', result)
 
-    result = re.sub(r'<font color="(?P<color1>[^"]+)">(?P<startspaces>\s*)<font color="(?P<color2>[^"]+)">(?P<text>[^<]+)</font>(?P<endspaces>\s*)</font>',
-                    r'\g<startspaces><font color="\g<color2>">\g<text></font>\g<endspaces>',
-                    result)
+    result = FONT_OR_I_1.sub('\g<all>', result)
+    result = FONT_OR_I_2.sub('\g<all>', result)
+    result = NEWLINE_WITH_TRAILING_SPACE.sub('\n', result)
+    result = NEWLINE_WITH_LEADING_SPACE.sub('\n', result)
 
-    result = re.sub(r'\n+(?P<all></(font|i)>)', '\g<all>\n', result)
+    result = MULTI_COLOR_FONT.sub(
+        r'\g<startspaces><font color="\g<color2>">\g<text></font>\g<endspaces>',
+        result
+    )
 
-    result = re.sub(r'<font color="([^"]+)">(?P<spaces>\s*)</font>', '\g<spaces>', result)
+    result = CLOSING_TAG.sub('\g<all>\n', result)
+
+    result = FONT_COLOR.sub('\g<spaces>', result)
 
     if elem.tag in ('div', 'p', 'br'):
         result += '\n'
@@ -181,7 +201,7 @@ def convert_ttml_to_srt(ttml_subtitles):
     for timestamp in sorted(timestamps):
         rendered.append((
             timestamp,
-            re.sub(r'\n\n\n+', '\n\n', render_subtitles(body, timestamp=timestamp, styles=styles)).strip()
+            TRIPLE_NEWLINE.sub('\n\n', render_subtitles(body, timestamp=timestamp, styles=styles)).strip()
         ))
 
     if not rendered:
