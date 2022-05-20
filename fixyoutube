@@ -1,0 +1,5 @@
+#!/bin/bash
+fn="$*"
+outfn=${fn%%ttml}srt
+./ttml2srt "$*" && ./fixsrt.py < "$outfn"
+open out.csv
